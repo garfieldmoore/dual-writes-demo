@@ -44,31 +44,19 @@ http://localhost:3000/todos
 
 ## Demo Steps
 
-1. **Reset database and search app:**
-   ```bash
-   # Reset database
-   rm todo-app/db/development.sqlite3
-   cd todo-app && rails db:create db:migrate && cd ..
-   
-   # Restart search app (it's in-memory, so this clears it)
-   # Stop it (Ctrl+C) and run: npm start again
-   ```
-   Then sync: `./scripts/sync_search_app.sh`
+1. **Add todos and sync:**
+   - Add a few todos in the browser
+   - Sync search app: `./scripts/sync_search_app.sh`
 
-2. **Hard delete a todo** in the browser (red button) — don't sync the search app yet
+2. **Hard delete a todo** (red button) — don't sync the search app yet
    - The record is gone from the database
    - The search app still thinks it's active
    - This creates inconsistency
 
-3. **Reset again and demonstrate soft delete:**
-   ```bash
-   # Reset database
-   rm todo-app/db/development.sqlite3
-   cd todo-app && rails db:create db:migrate && cd ..
-   
-   # Restart search app again
-   ```
-   Then sync: `./scripts/sync_search_app.sh`
+3. **Restart search app and demonstrate soft delete:**
+   - Stop the search app (Ctrl+C) and restart it
+   - This clears the in-memory store
+   - Sync again: `./scripts/sync_search_app.sh`
    - Add new todos
    - Soft delete (yellow button) instead
    - The record stays in the database, just marked as deleted
