@@ -2,6 +2,26 @@
 
 This guide walks you through the demo manually, so you can see the effects step-by-step.
 
+## Quick Reference — URLs to View Data
+
+Keep these URLs handy while running the demo:
+
+| What | URL | Notes |
+|------|-----|-------|
+| **Todos List (HTML)** | http://localhost:3000/todos | Best view - shows active & deleted side-by-side, auto-refreshes |
+| **Active Todos (JSON)** | http://localhost:3000/api/todos | What GraphQL returns (search app filtered) |
+| **All Todos (JSON)** | http://localhost:3000/api/todos/all | All rows including soft-deleted ones |
+| **Search App IDs** | http://localhost:3001/todos | What the search service knows about |
+
+**CLI Commands:**
+```bash
+./scripts/view_db.sh      # Database state (see ACTIVE/DELETED status)
+./scripts/view_search.sh  # Search app state
+./scripts/list_todos.sh   # GraphQL response
+```
+
+---
+
 ## Setup
 
 **Terminal 1 — Start the Search App (port 3001)**
@@ -61,22 +81,26 @@ This reads the database and notifies the search app of each todo.
 
 ### Step 3: View the current state
 
-**See what's in the Rails database:**
+You can view the data in three ways:
+
+**Browser — Nice HTML list (recommended):**
+- **http://localhost:3000/todos** — All todos in a nice table (auto-refreshes every 2 seconds)
+- Shows active and deleted todos side-by-side
+- Best for seeing the full picture
+
+**API — Raw JSON:**
+- **http://localhost:3000/api/todos** — Active todos only (what search app returns)
+- **http://localhost:3000/api/todos/all** — All todos including deleted
+- **http://localhost:3001/todos** — Search app's active IDs (simple list)
+
+**CLI — Command line:**
 ```bash
-./scripts/view_db.sh
+./scripts/view_db.sh      # See Rails database (all rows, marked ACTIVE/DELETED)
+./scripts/view_search.sh  # See search app state (which IDs it knows about)
+./scripts/list_todos.sh   # See GraphQL response (what client sees)
 ```
 
-**See what the search app knows:**
-```bash
-./scripts/view_search.sh
-```
-
-**Query via GraphQL (what the client sees):**
-```bash
-./scripts/list_todos.sh
-```
-
-All three should show the same 3 todos.
+All three data sources should show the same 3 active todos:
 
 ### Step 4: Simulate sync lag — soft-delete a todo
 
@@ -86,26 +110,32 @@ Now, soft-delete todo #2 in the Rails app:
 ./scripts/delete_todo.sh 2
 ```
 
-Notice:
-- `discarded: true` in the response
+Notice in the response:
+- `discarded: true`
 - `discardedAt` is now set
 
-**Check the database again:**
+**Check the database:**
 ```bash
 ./scripts/view_db.sh
 ```
 
-See that todo #2 is marked as DELETED, but the **row still exists**.
+Or visit **http://localhost:3000/todos** to see the HTML list. You'll see todo #2 is marked as DELETED, but the **row still exists** in the database.
 
 ### Step 5: The critical moment — don't sync yet!
 
-The search app hasn't been told about the deletion. This is the sync lag:
+This is where you see the sync lag. The search app hasn't been told about the deletion yet.
 
+**Check what the search app knows:**
 ```bash
 ./scripts/view_search.sh
 ```
 
-The search app still thinks todo #2 is active!
+Or visit: **http://localhost:3001/todos** in browser (see the list of IDs)
+
+The search app still thinks todo #2 is active! Now you have:
+- **Database:** todo #2 is DELETED
+- **Search app:** todo #2 is still ACTIVE
+- **This is the sync lag**
 
 ### Step 6: Query the todos (the key insight)
 
@@ -135,14 +165,17 @@ This is the power of soft deletes. With a hard delete, todo #2 wouldn't exist in
 ./scripts/view_search.sh
 ```
 
-Now it knows todo #2 is deleted.
+Or visit: **http://localhost:3001/todos** — now it only shows [1, 3]
 
-**Query the todos again:**
+The search app now knows todo #2 is deleted.
+
+**View the todos list again:**
+Visit **http://localhost:3000/todos** or:
 ```bash
 ./scripts/list_todos.sh
 ```
 
-Still shows [1, 3], but now because the search app itself is filtering it out.
+Still shows [1, 3], but now because the search app itself has filtered it out (not the resolver).
 
 ---
 
