@@ -1,6 +1,8 @@
 Rails.application.routes.draw do
   root "home#index"
 
+  get "/todos", to: "todos#index"  # View all todos in nice list
+
   post "/graphql", to: "graphql#execute"
 
   namespace :api do
