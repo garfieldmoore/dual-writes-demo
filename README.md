@@ -1,155 +1,232 @@
-# Todo List Demo: Soft Deletes with Sync Lag
+# Dual Writes Demo: Soft Deletes with Sync Lag
 
-This demo shows how soft deletes (via the `discard` gem) are defensive against service sync lag when using a search/index service with CDC (Change Data Capture) events.
+This demo shows how soft deletes (via the `discard` gem) handle sync lag gracefully when using a search/index service that returns IDs.
 
 ## The Problem
 
-In a microservices architecture with a search service that returns IDs:
+In a microservices architecture:
+- **Search service** stores metadata and returns only active IDs: `[1, 2, 3]`
+- **Data service** owns full records, fetches by ID, resolves them in GraphQL
+- **Sync lag** occurs when data service deletes before search service syncs
 
-1. **Search service** stores a record and returns only its ID (e.g., `[1, 2, 3]`)
-2. **Data service** fetches full records by ID and resolves them in GraphQL
-3. **Sync lag** occurs when the data service deletes a record before the search service syncs (via Debezium or similar CDC events)
-
-**Without soft deletes (hard delete):**
-- Record is removed from DB
-- Search service still returns the ID
-- GraphQL resolver throws "not found" error
-- **Result:** Error propagates to the client, breaking the query
-
-**With soft deletes (discard):**
-- Record is marked as deleted but still exists in the DB
-- Search service still returns the ID (temporarily, due to lag)
-- GraphQL resolver can fetch the record, see it's discarded, and return `null`
-- **Result:** No error, the query succeeds with a filtered list
-
-## Architecture
-
+**Hard Delete Scenario:**
 ```
-┌─────────────┐
-│  Client     │
-└──────┬──────┘
-       │ GraphQL query
-       ↓
-┌─────────────────────────────┐
-│  Todo App (Rails)           │
-│  - GraphQL resolvers        │
-│  - Discard gem (soft delete)│
-└──────────────┬──────────────┘
-       │ 1. fetch active IDs
-       ↓
-┌──────────────────────────────┐
-│  Search App (Node.js)        │
-│  - Returns [id1, id2, id3]   │
-│  - Stores is_deleted flag    │
-└──────────────┬───────────────┘
-       │ 2. webhook (Debezium simulation)
-       ↓
-    (Update deleted status with lag)
+1. Delete todo #2 from DB (hard delete)
+2. Search app still returns [1, 2, 3] (hasn't synced yet)
+3. GraphQL resolver tries to fetch todo #2
+4. Result: ActiveRecord::RecordNotFound error
+5. Query fails, client sees error ❌
 ```
 
-## Running the Demo
+**Soft Delete Scenario:**
+```
+1. Soft-delete todo #2 (mark as discarded_at, row still exists)
+2. Search app still returns [1, 2, 3] (hasn't synced yet)
+3. GraphQL resolver fetches todo #2 (it exists), checks discarded?
+4. Resolver filters it out gracefully, returns [1, 3]
+5. Query succeeds, client sees clean list ✓
+```
 
-### 1. Start the Search App
+## Quick Start
 
+### 1. Start the apps
+**Terminal 1:**
 ```bash
-cd search-app
-npm install
-npm start
-# Listening on http://localhost:3001
+cd search-app && npm install && npm start
 ```
 
-### 2. Start the Rails App
-
+**Terminal 2:**
 ```bash
-cd todo-app
-bundle install
-rails db:create db:migrate
-rails s
-# Listening on http://localhost:3000
+cd todo-app && bundle install && rails db:create db:migrate && rails s
 ```
 
-### 3. Test the Scenario
-
+### 2. Run the interactive demo
+**Terminal 3:**
 ```bash
-bash /tmp/test_demo.sh
+./scripts/add_todo.sh "Buy milk" "From the store"
+./scripts/add_todo.sh "Walk dog"
+./scripts/add_todo.sh "Code review"
+
+./scripts/view_db.sh
+./scripts/sync_search_app.sh
+./scripts/view_search.sh
+./scripts/list_todos.sh
+
+./scripts/delete_todo.sh 2
+
+./scripts/view_db.sh         # Todo #2 is DELETED but row exists
+./scripts/view_search.sh     # Search still thinks it's active
+./scripts/list_todos.sh      # GraphQL filters it out gracefully ✓
+
+./scripts/sync_search_app.sh
+./scripts/list_todos.sh      # Now search also has it as deleted
 ```
 
-This script:
-1. Creates 3 todos via GraphQL mutation
-2. Verifies they appear in the search app
-3. Queries todos and shows all 3 appear
-4. Soft-deletes one todo (via `discard`)
-5. Verifies the search app is notified (webhook)
-6. Queries todos again → deleted one is filtered out, no error
+**See [DEMO.md](DEMO.md) for detailed step-by-step walkthrough.**
 
-## Key Code
+---
 
-### Soft Delete Model (Rails)
+## How It Works
 
+### The Flow
+
+```
+Client
+  ↓ GraphQL query: { todos { id title } }
+Rails App (port 3000)
+  ↓ "Get active todo IDs from search app"
+Search App (port 3001)
+  ↓ returns: [1, 2, 3]
+Rails App
+  ↓ "Fetch todos with IDs [1, 2, 3] from DB"
+  ↓ Todo.with_discarded.where(id: ids)
+  ↓ Found: 1 (active), 2 (DISCARDED), 3 (active)
+  ↓ "Filter out discarded? -> true"
+  ↓ returns: [1, 3]
+Client
+  ← receives: [{ id: 1, title: "..." }, { id: 3, title: "..." }]
+```
+
+### Key Code
+
+**Model — includes soft delete support:**
 ```ruby
 class Todo < ApplicationRecord
-  include Discard::Model  # Adds soft delete support
-
-  after_discard :notify_search_app_deleted
+  include Discard::Model  # Adds discard, undiscard, discarded? methods
+  validates :title, presence: true
 end
 ```
 
-### GraphQL Resolver
+**Migration — includes discarded_at column:**
+```ruby
+create_table :todos do |t|
+  t.string :title, null: false
+  t.text :description
+  t.boolean :completed, default: false
+  t.datetime :discarded_at  # Discard gem uses this
+  t.timestamps
+end
+```
 
+**GraphQL Resolver — the critical part:**
 ```ruby
 def todos
-  search_ids = fetch_active_ids_from_search  # Get IDs from search service
-  todos = Todo.with_discarded.where(id: search_ids)
-
+  search_ids = fetch_active_ids_from_search  # [1, 2, 3]
+  todos = Todo.with_discarded.where(id: search_ids)  # Includes deleted
+  
   todos.map do |todo|
-    todo.discarded? ? nil : todo  # Filter out discarded, no error
+    todo.discarded? ? nil : todo  # Filter out deleted
   end.compact
 end
 ```
 
-### Webhook Sync (Simulates Debezium)
+### Why `with_discarded`?
 
-```ruby
-class SearchSyncService
-  def self.notify_deleted(id)
-    post_to_search_app(id, 'deleted')  # Update search service
-  end
-end
-```
+The `discard` gem changes the default scope:
+- `Todo.all` — excludes discarded records (default)
+- `Todo.with_discarded` — includes both active and discarded
 
-## The Insight
+We need `with_discarded` because:
+1. Search app returns IDs (including potentially-deleted ones due to lag)
+2. We fetch all those IDs from the database
+3. We check which are discarded
+4. We filter gracefully
 
-**Soft deletes are defensive.** Even if sync lag causes the search service to return a deleted ID, the data service can gracefully handle it:
-- No database errors (record exists)
-- No GraphQL errors (resolver handles `nil` values)
-- Client gets a clean result set
+If we used the default scope, we'd get `RecordNotFound` when the search app returns a discarded ID.
 
-This is much more elegant than hard deletes, which require error handling at the GraphQL layer to catch "not found" scenarios.
+---
 
-## Files
+## Scripts
 
-- `search-app/` — Node.js/Express service (simulates search/index domain)
-- `todo-app/` — Rails API with GraphQL (owns the data)
+All scripts in `./scripts/` directory:
 
-## Gems Used
+| Script | Purpose |
+|--------|---------|
+| `add_todo.sh` | Create a new todo |
+| `list_todos.sh` | Query todos via GraphQL |
+| `delete_todo.sh` | Soft-delete a todo |
+| `sync_search_app.sh` | Sync DB state to search app |
+| `set_deleted.sh` | Manually mark as deleted/active in search |
+| `view_db.sh` | View Rails database |
+| `view_search.sh` | View search app state |
 
-- **discard** — Soft delete implementation (marks as discarded_at instead of removing rows)
-- **graphql** — GraphQL schema and resolvers
-- **faraday** — HTTP client for webhook calls
+---
 
-## Testing Variations
+## Architecture
 
-To simulate different sync lag scenarios:
+### Search App (Node.js, port 3001)
+- Stores todo metadata: `{ id, is_deleted, created_at, deleted_at }`
+- `GET /todos` — returns active IDs only
+- `GET /todos/all` — returns all with is_deleted flag
+- `POST /webhook/todos` — receives sync updates
 
-**No lag (search syncs immediately):**
+### Todo App (Rails, port 3000)
+- GraphQL API at `POST /graphql`
+- Database: SQLite (`db/development.sqlite3`)
+- Models use `discard` gem for soft deletes
+- Resolvers call search app to get IDs, then fetch from DB
+
+### No Webhooks
+Unlike real Debezium, this demo doesn't auto-sync. You control sync with `./scripts/sync_search_app.sh`. This makes the lag visible and testable.
+
+---
+
+## Inspecting the Database
+
+### SQLite CLI
 ```bash
-# Just run the normal test
+cd todo-app
+sqlite3 db/development.sqlite3
+SELECT id, title, discarded_at FROM todos;
 ```
 
-**Simulate lag (search hasn't synced yet):**
-```bash
-# Manually query after deletion, before search app updates
-curl http://localhost:3001/todos  # Still returns deleted ID
-curl http://localhost:3000/graphql -d '{ todos { id title } }'
-# Still gracefully filters deleted, no error
-```
+### DBeaver (GUI)
+1. Download: https://dbeaver.io
+2. New SQLite connection → `/path/to/claude-demo/todo-app/db/development.sqlite3`
+3. Browse tables, query, edit live
+
+---
+
+## Gems & Dependencies
+
+**Rails:**
+- `discard` — soft deletes (marks with `discarded_at` instead of deleting)
+- `graphql` — GraphQL schema and resolvers
+- `faraday` — HTTP client for calling search app
+
+**Node:**
+- `express` — web server
+- `body-parser` — JSON parsing
+
+---
+
+## Key Insight
+
+> **Soft deletes are defensive against sync lag.** Even if the search service returns a deleted ID (due to lag), the data service can gracefully handle it without errors. Hard deletes require error handling at the GraphQL layer and break the client experience.
+
+---
+
+## Extending
+
+**Add real persistence to search app:**
+- Add SQLite to `search-app/`
+- Save/load state from DB
+
+**Add retry logic to sync:**
+- Wrap sync in Rails job queue
+- Implement exponential backoff
+
+**Add webhooks back in:**
+- Uncomment `after_discard` hooks in Todo model
+- Use Active Job to post webhooks asynchronously
+
+**Add federation gateway:**
+- Setup Apollo Gateway
+- Expose search app as a subgraph with `@key` directives
+
+---
+
+## See Also
+
+- [DEMO.md](DEMO.md) — Step-by-step interactive walkthrough
+- [CLAUDE.md](CLAUDE.md) — Development guidance

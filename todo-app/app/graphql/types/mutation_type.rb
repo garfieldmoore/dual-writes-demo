@@ -2,6 +2,7 @@ module Types
   class MutationType < Types::BaseObject
     field :create_todo, Types::TodoType, null: true do
       argument :title, String, required: true
+      argument :description, String, required: false
     end
 
     field :update_todo, Types::TodoType, null: true do
@@ -14,8 +15,8 @@ module Types
       argument :id, ID, required: true
     end
 
-    def create_todo(title:)
-      todo = Todo.create!(title:, completed: false)
+    def create_todo(title:, description: nil)
+      todo = Todo.create!(title:, description:, completed: false)
       todo
     rescue StandardError => e
       GraphQL::ExecutionError.new(e.message)
