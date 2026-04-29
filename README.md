@@ -49,9 +49,9 @@ http://localhost:3000/todos
    - Sync search app: `./scripts/sync_search_app.sh`
 
 2. **Hard delete a todo** (red button) — don't sync the search app yet
-   - The record is gone from the database
+   - Hard delete removes the record from the database
    - The search app still thinks it's active
-   - This creates inconsistency
+   - **Refresh the browser** to see the issue: the deleted ID can't be found
 
 3. **Restart search app and demonstrate soft delete:**
    - Stop the search app (Ctrl+C) and restart it
@@ -60,6 +60,7 @@ http://localhost:3000/todos
    - Add new todos
    - Soft delete (yellow button) instead
    - The record stays in the database, just marked as deleted
+   - **Refresh the browser** to confirm: record is shown as soft-deleted
    - Search app can still find it and filter gracefully
    - No inconsistency
 
