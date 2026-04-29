@@ -40,8 +40,4 @@ module.exports = {
   hasTodo(id) {
     return store.has(id);
   },
-
-  clear() {
-    store.clear();
-  },
 };

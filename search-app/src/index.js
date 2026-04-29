@@ -17,11 +17,6 @@ app.get('/todos/all', (req, res) => {
   res.json({ todos });
 });
 
-app.post('/reset', (req, res) => {
-  store.clear();
-  res.json({ success: true, message: 'Search app cleared' });
-});
-
 app.post('/webhook/todos', (req, res) => {
   const { id, action, title, description } = req.body;
 

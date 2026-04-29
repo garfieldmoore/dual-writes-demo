@@ -46,11 +46,14 @@ http://localhost:3000/todos
 
 1. **Reset database and search app:**
    ```bash
+   # Reset database
    rm todo-app/db/development.sqlite3
    cd todo-app && rails db:create db:migrate && cd ..
-   ./scripts/reset_search_app.sh
-   ./scripts/sync_search_app.sh
+   
+   # Restart search app (it's in-memory, so this clears it)
+   # Stop it (Ctrl+C) and run: npm start again
    ```
+   Then sync: `./scripts/sync_search_app.sh`
 
 2. **Hard delete a todo** in the browser (red button) — don't sync the search app yet
    - The record is gone from the database
@@ -59,11 +62,13 @@ http://localhost:3000/todos
 
 3. **Reset again and demonstrate soft delete:**
    ```bash
+   # Reset database
    rm todo-app/db/development.sqlite3
    cd todo-app && rails db:create db:migrate && cd ..
-   ./scripts/reset_search_app.sh
-   ./scripts/sync_search_app.sh
+   
+   # Restart search app again
    ```
+   Then sync: `./scripts/sync_search_app.sh`
    - Add new todos
    - Soft delete (yellow button) instead
    - The record stays in the database, just marked as deleted
@@ -74,7 +79,6 @@ http://localhost:3000/todos
 
 | Script | Purpose |
 |--------|---------|
-| `./scripts/reset_search_app.sh` | Clear search app state |
 | `./scripts/sync_search_app.sh` | Sync database to search app |
 | `./scripts/add_todo.sh` | Create a todo via GraphQL |
 | `./scripts/delete_todo.sh` | Soft-delete a todo |
