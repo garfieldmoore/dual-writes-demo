@@ -44,28 +44,19 @@ http://localhost:3000/todos
 
 ## Demo Steps
 
-1. **Add todos and sync:**
+1. **Reset and sync:**
    ```bash
    ./scripts/reset_search_app.sh
    ./scripts/sync_search_app.sh
    ```
 
 2. **Hard delete a todo** in the browser (red button) — don't sync the search app yet
+   - Notice the query may behave differently depending on the resolver mode (toggle at top)
 
-3. **Try the `find` resolver:**
-   - Toggle shows "find"
-   - Query breaks: `⚠️ Query failed`
-   - This is the problem: search app returned an ID that no longer exists
-
-4. **Switch to `where` resolver:**
-   - Click Toggle to switch
-   - Query works, but the deleted todo is missing
-
-5. **Now try soft delete instead:**
-   - Add new todos and sync
-   - Soft delete (yellow button)
-   - Query works in both resolvers!
-   - Record still in database, just marked deleted
+3. **Soft delete a todo instead** (yellow button)
+   - Add new todos first
+   - Soft delete works consistently regardless of resolver mode
+   - Record is still in the database, just marked as deleted
 
 ## Scripts
 
