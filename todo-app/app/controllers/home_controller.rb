@@ -1,5 +1,5 @@
-class HomeController < ApplicationController
+class HomeController < ActionController::Base
   def index
-    # View rendered from app/views/home/index.html.erb
+    render :index, layout: false
   end
 end
