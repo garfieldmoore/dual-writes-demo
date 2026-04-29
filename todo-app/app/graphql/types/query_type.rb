@@ -14,7 +14,12 @@ module Types
       search_ids = fetch_active_ids_from_search
       return [] if search_ids.empty?
 
-      todos = Todo.with_discarded.where(id: search_ids)
+      mode = Api::SettingsController.resolver_mode
+      todos = if mode == 'where'
+        Todo.with_discarded.where(id: search_ids)
+      else
+        Todo.with_discarded.find(search_ids)
+      end
 
       todos.map do |todo|
         if todo.discarded?

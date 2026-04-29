@@ -15,6 +15,10 @@ module Types
       argument :id, ID, required: true
     end
 
+    field :hard_delete_todo, Types::TodoType, null: true do
+      argument :id, ID, required: true
+    end
+
     def create_todo(title:, description: nil)
       todo = Todo.create!(title:, description:, completed: false)
       todo
@@ -40,6 +44,16 @@ module Types
       return GraphQL::ExecutionError.new("Todo not found") unless todo
 
       todo.discard
+      todo
+    rescue StandardError => e
+      GraphQL::ExecutionError.new(e.message)
+    end
+
+    def hard_delete_todo(id:)
+      todo = Todo.find_by(id:)
+      return GraphQL::ExecutionError.new("Todo not found") unless todo
+
+      todo.destroy
       todo
     rescue StandardError => e
       GraphQL::ExecutionError.new(e.message)

@@ -11,9 +11,11 @@ module.exports = {
     return Array.from(store.values());
   },
 
-  addTodo(id) {
+  addTodo(id, title = null, description = null) {
     store.set(id, {
       id,
+      title,
+      description,
       is_deleted: false,
       created_at: new Date().toISOString(),
     });
@@ -37,5 +39,9 @@ module.exports = {
 
   hasTodo(id) {
     return store.has(id);
+  },
+
+  clear() {
+    store.clear();
   },
 };

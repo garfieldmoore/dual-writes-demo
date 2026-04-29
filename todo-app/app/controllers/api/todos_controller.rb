@@ -2,7 +2,14 @@ module Api
   class TodosController < ApplicationController
     def index
       search_ids = fetch_active_ids_from_search
-      todos = Todo.with_discarded.where(id: search_ids)
+      return render json: [], status: :ok if search_ids.empty?
+
+      mode = Api::SettingsController.resolver_mode
+      todos = if mode == 'where'
+        Todo.with_discarded.where(id: search_ids)
+      else
+        Todo.with_discarded.find(search_ids)
+      end
 
       todos_filtered = todos.map do |todo|
         todo.discarded? ? nil : todo

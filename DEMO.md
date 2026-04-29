@@ -69,9 +69,15 @@ The question: What happens when you soft-delete a todo before the search app kno
 
 Each returns the created todo with an ID (1, 2, 3, etc.).
 
-### Step 2: Sync the search app
+### Step 2: Reset and sync the search app
 
-Tell the search app about all the todos in the database:
+First, clear the search app to start fresh:
+
+```bash
+./scripts/reset_search_app.sh
+```
+
+Then sync the database state to the search app:
 
 ```bash
 ./scripts/sync_search_app.sh
@@ -251,6 +257,7 @@ SELECT id, title FROM todos WHERE discarded_at IS NULL;
 - `./scripts/delete_todo.sh` — Soft-delete a todo from Rails
 - `./scripts/list_todos.sh` — Query todos via GraphQL
 - `./scripts/sync_search_app.sh` — Sync database state to search app
+- `./scripts/reset_search_app.sh` — Clear all todos from search app (start fresh)
 - `./scripts/set_deleted.sh` — Manually mark a todo as deleted/active in search
 - `./scripts/view_db.sh` — View the Rails database
 - `./scripts/view_search.sh` — View the search app state

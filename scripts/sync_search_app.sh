@@ -13,9 +13,10 @@ cd todo-app
 rails runner "
   Todo.with_discarded.all.each do |todo|
     action = todo.discarded? ? 'deleted' : 'created'
+    payload = {id: todo.id.to_s, action: action, title: todo.title, description: todo.description}.to_json
     response = \`curl -s -X POST http://localhost:3001/webhook/todos \
       -H 'Content-Type: application/json' \
-      -d '{\"id\": \"#{todo.id}\", \"action\": \"#{action}\"}'\`
+      -d '#{payload}'\`
     puts \"  Syncing todo ##{todo.id} (#{action})\"
   end
 "

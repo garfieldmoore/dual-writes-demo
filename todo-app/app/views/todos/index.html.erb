@@ -1,8 +1,366 @@
-<h1>Todos</h1>
-<p>Loading...</p>
-<script>
-  fetch('/api/todos')
-    .then(r => r.json())
-    .then(todos => document.body.innerHTML = '<h1>Active Todos (' + todos.length + ')</h1><pre>' + JSON.stringify(todos, null, 2) + '</pre>')
-    .catch(e => document.body.innerHTML = '<h1>Error: ' + e.message + '</h1>');
-</script>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Todo App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 40px; color: white; }
+    h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .subtitle { font-size: 1.1em; opacity: 0.9; }
+
+    .card { background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .add-section { padding: 30px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1em;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+    input[type="text"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+    button:active { transform: translateY(0); }
+
+    .todo-section { padding: 30px; }
+    .section-title { font-size: 1.3em; font-weight: 700; margin-bottom: 20px; color: #333; }
+
+    .todo-item {
+      background: #f8f9fa;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      transition: all 0.2s;
+    }
+    .todo-item:hover { background: #f0f0f0; }
+
+    .todo-content { flex: 1; }
+    .todo-title { font-weight: 600; font-size: 1.1em; color: #333; margin-bottom: 5px; }
+    .todo-desc { color: #666; font-size: 0.95em; }
+
+    .todo-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .badge-active { background: #d4edda; color: #155724; }
+    .badge-deleted { background: #f8d7da; color: #721c24; }
+
+    .todo-actions { margin-left: 15px; display: flex; gap: 10px; }
+    .delete-btn {
+      background: #ffc107;
+      padding: 8px 15px;
+      font-size: 0.9em;
+      white-space: nowrap;
+    }
+    .delete-btn:hover { background: #ffb300; }
+    .hard-delete-btn {
+      background: #dc3545;
+      padding: 8px 15px;
+      font-size: 0.9em;
+      white-space: nowrap;
+    }
+    .hard-delete-btn:hover { background: #c82333; }
+
+    .empty-state { text-align: center; color: #999; padding: 40px 20px; }
+    .empty-state p { font-size: 1.1em; }
+
+    .settings-panel { background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+    .settings-label { font-weight: 600; color: #333; }
+    .mode-display { background: white; padding: 8px 15px; border-radius: 6px; font-family: monospace; font-weight: 600; }
+    .mode-find { color: #dc3545; }
+    .mode-where { color: #28a745; }
+    .toggle-mode-btn { background: #667eea; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .toggle-mode-btn:hover { background: #764ba2; }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number { font-size: 2em; font-weight: bold; }
+    .stat-label { font-size: 0.9em; opacity: 0.9; margin-top: 5px; }
+
+    .loading { text-align: center; color: #999; padding: 40px; }
+    .loading::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+    @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } }
+  </style>
+  <script>
+    const API_URL = 'http://localhost:3000';
+    let todos = [];
+    let currentMode = 'find';
+
+    function loadTodos() {
+      Promise.all([
+        fetch(`${API_URL}/api/todos`).then(r => {
+          if (!r.ok) throw new Error(`API error: ${r.status}`);
+          return r.json();
+        }),
+        fetch(`${API_URL}/api/todos/all`).then(r => r.json())
+      ]).then(([active, all]) => {
+        todos = all;
+        const activeTodos = todos.filter(t => !t.discarded_at);
+        const deletedTodos = todos.filter(t => t.discarded_at);
+
+        document.getElementById('active-count').textContent = activeTodos.length;
+        document.getElementById('deleted-count').textContent = deletedTodos.length;
+
+        renderTodos(activeTodos, deletedTodos);
+      }).catch(err => {
+        console.error('Error:', err);
+        document.getElementById('active-todos').innerHTML = `<div class="empty-state"><p style="color: #dc3545;">⚠️ Query failed: ${err.message}</p><p style="font-size: 0.9em; color: #999;">This happens when .find() mode tries to fetch a hard-deleted todo that the search app still has.</p></div>`;
+        document.getElementById('deleted-todos').innerHTML = '';
+      });
+    }
+
+    function renderTodos(active, deleted) {
+      const activeHtml = active.length === 0
+        ? '<div class="empty-state"><p>No active todos yet. Create one above!</p></div>'
+        : active.map(t => `
+            <div class="todo-item">
+              <div class="todo-content">
+                <div class="todo-title">${escapeHtml(t.title)}</div>
+                ${t.description ? `<div class="todo-desc">${escapeHtml(t.description)}</div>` : ''}
+                <span class="todo-badge badge-active">ACTIVE</span>
+              </div>
+              <div class="todo-actions">
+                <button class="delete-btn" onclick="softDeleteTodo(${t.id})">Soft Delete</button>
+                <button class="hard-delete-btn" onclick="hardDeleteTodo(${t.id})">Hard Delete</button>
+              </div>
+            </div>
+          `).join('');
+
+      const deletedHtml = deleted.length === 0
+        ? '<div class="empty-state"><p>No deleted todos</p></div>'
+        : deleted.map(t => `
+            <div class="todo-item" style="opacity: 0.6;">
+              <div class="todo-content">
+                <div class="todo-title" style="text-decoration: line-through;">${escapeHtml(t.title)}</div>
+                ${t.description ? `<div class="todo-desc">${escapeHtml(t.description)}</div>` : ''}
+                <span class="todo-badge badge-deleted">DELETED</span>
+              </div>
+            </div>
+          `).join('');
+
+      document.getElementById('active-todos').innerHTML = activeHtml;
+      document.getElementById('deleted-todos').innerHTML = deletedHtml;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function addTodo(e) {
+      e.preventDefault();
+      const title = document.getElementById('todo-title').value.trim();
+      const description = document.getElementById('todo-description').value.trim();
+
+      if (!title) {
+        alert('Please enter a title');
+        return;
+      }
+
+      const query = `mutation {
+        createTodo(title: "${title.replace(/"/g, '\\"')}"${description ? `, description: "${description.replace(/"/g, '\\"')}"` : ''}) {
+          id title description completed
+        }
+      }`;
+
+      fetch(`${API_URL}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.errors) {
+          alert('Error: ' + data.errors[0].message);
+        } else {
+          document.getElementById('todo-form').reset();
+          loadTodos();
+        }
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function softDeleteTodo(id) {
+      if (!confirm('Soft delete this todo? (row stays in database)')) return;
+
+      const query = `mutation {
+        deleteTodo(id: "${id}") {
+          id discarded
+        }
+      }`;
+
+      fetch(`${API_URL}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.errors) {
+          alert('Error: ' + data.errors[0].message);
+        } else {
+          loadTodos();
+        }
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function hardDeleteTodo(id) {
+      if (!confirm('⚠️ Hard delete this todo? (row is permanently removed from database)')) return;
+
+      const query = `mutation {
+        hardDeleteTodo(id: "${id}") {
+          id title
+        }
+      }`;
+
+      fetch(`${API_URL}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.errors) {
+          alert('Error: ' + data.errors[0].message);
+        } else {
+          loadTodos();
+        }
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function loadResolverMode() {
+      fetch(`${API_URL}/api/settings/mode`)
+        .then(r => r.json())
+        .then(data => {
+          currentMode = data.mode;
+          updateModeDisplay();
+        })
+        .catch(err => console.error('Error loading mode:', err));
+    }
+
+    function toggleResolverMode() {
+      const newMode = currentMode === 'find' ? 'where' : 'find';
+      fetch(`${API_URL}/api/settings/mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode })
+      })
+      .then(r => r.json())
+      .then(data => {
+        currentMode = data.mode;
+        updateModeDisplay();
+        loadTodos();
+      })
+      .catch(err => alert('Error: ' + err.message));
+    }
+
+    function updateModeDisplay() {
+      const display = document.getElementById('mode-display');
+      if (display) {
+        display.textContent = currentMode;
+        display.className = `mode-display mode-${currentMode}`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadResolverMode();
+      loadTodos();
+      setInterval(loadTodos, 3000);
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📋 Todo App</h1>
+      <p class="subtitle">Soft Deletes Demo — With Sync Lag Handling</p>
+    </header>
+
+    <div class="card settings-panel">
+      <span class="settings-label">Resolver:</span>
+      <div class="mode-display" id="mode-display">find</div>
+      <button class="toggle-mode-btn" id="toggle-mode-btn" onclick="toggleResolverMode()">Toggle</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="active-count">-</div>
+        <div class="stat-label">Active Todos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="deleted-count">-</div>
+        <div class="stat-label">Soft-Deleted</div>
+      </div>
+    </div>
+
+    <div class="card add-section">
+      <h2 style="margin-bottom: 20px; color: #333;">✨ Add New Todo</h2>
+      <form id="todo-form" onsubmit="addTodo(event)">
+        <div class="form-group">
+          <label for="todo-title">Title *</label>
+          <input type="text" id="todo-title" placeholder="What needs to be done?" required>
+        </div>
+        <div class="form-group">
+          <label for="todo-description">Description</label>
+          <textarea id="todo-description" placeholder="Add more details (optional)"></textarea>
+        </div>
+        <button type="submit">Add Todo</button>
+      </form>
+    </div>
+
+    <div class="card todo-section">
+      <div class="section-title">✅ Active Todos</div>
+      <div id="active-todos" class="loading">Loading...</div>
+    </div>
+
+    <div class="card todo-section">
+      <div class="section-title">🗑️ Soft-Deleted Todos</div>
+      <div id="deleted-todos" class="loading">Loading...</div>
+    </div>
+  </div>
+</body>
+</html>

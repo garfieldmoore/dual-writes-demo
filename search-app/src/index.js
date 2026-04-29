@@ -17,16 +17,21 @@ app.get('/todos/all', (req, res) => {
   res.json({ todos });
 });
 
+app.post('/reset', (req, res) => {
+  store.clear();
+  res.json({ success: true, message: 'Search app cleared' });
+});
+
 app.post('/webhook/todos', (req, res) => {
-  const { id, action } = req.body;
+  const { id, action, title, description } = req.body;
 
   if (!id || !action) {
     return res.status(400).json({ error: 'id and action are required' });
   }
 
   if (action === 'created' || action === 'updated') {
-    store.addTodo(id);
-    console.log(`[Search] Added/updated todo: ${id}`);
+    store.addTodo(id, title, description);
+    console.log(`[Search] Added/updated todo: ${id} - ${title}`);
   } else if (action === 'deleted') {
     store.markDeleted(id);
     console.log(`[Search] Marked deleted: ${id}`);

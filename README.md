@@ -40,29 +40,69 @@ cd search-app && npm install && npm start
 cd todo-app && bundle install && rails db:create db:migrate && rails s
 ```
 
-### 2. Run the interactive demo
-**Terminal 3:**
+### 2. Open the web UI
+Open **http://localhost:3000/todos** in your browser. You'll see:
+- A form to add new todos (title + description)
+- Two sections: "Active Todos" and "Soft-Deleted Todos"
+- **Soft Delete** button (yellow) — keeps record in database
+- **Hard Delete** button (red) — removes record from database
+- **Resolver** toggle (find/where) — switch between resolution strategies
+
+### 3. See the difference between hard and soft deletes
+
+**Step 1: Add todos and sync**
 ```bash
-./scripts/add_todo.sh "Buy milk" "From the store"
-./scripts/add_todo.sh "Walk dog"
-./scripts/add_todo.sh "Code review"
-
-./scripts/view_db.sh
+# In browser, add 3 todos via the form
+# Then sync the search app to know about them
 ./scripts/sync_search_app.sh
-./scripts/view_search.sh
-./scripts/list_todos.sh
-
-./scripts/delete_todo.sh 2
-
-./scripts/view_db.sh         # Todo #2 is DELETED but row exists
-./scripts/view_search.sh     # Search still thinks it's active
-./scripts/list_todos.sh      # GraphQL filters it out gracefully ✓
-
-./scripts/sync_search_app.sh
-./scripts/list_todos.sh      # Now search also has it as deleted
 ```
 
-**See [DEMO.md](DEMO.md) for detailed step-by-step walkthrough.**
+**Step 2: Hard delete and observe the behavior**
+- Hard delete todo #2 in the browser (don't sync the search app yet)
+- Notice: The row moves to "Soft-Deleted" section and is **gone from the database**
+- But the search app still thinks #2 is active!
+
+**Step 3: Try querying with `find` resolver**
+- Make sure you're on **find** (toggle shows "find")
+- The query breaks! You see: `⚠️ Query failed`
+- Search app returned an ID that no longer exists in the database
+
+**Step 4: Switch to `where` resolver**
+- Click **Toggle** to switch to **where**
+- The query works now! But todo #2 is missing from the results
+- Different behavior than find
+
+**Step 5: Now try soft delete instead**
+- Add new todos and sync
+- **Soft Delete** one (yellow button instead of red)
+- The query works in both `find` and `where`!
+- The record is still in the database, just marked as deleted
+
+### Typical Workflow
+
+To start fresh and demonstrate the behavior cleanly:
+
+```bash
+# 1. Reset the search app
+./scripts/reset_search_app.sh
+
+# 2. Add todos in the browser
+# (or via ./scripts/add_todo.sh)
+
+# 3. Sync the search app to know about them
+./scripts/sync_search_app.sh
+
+# 4. Hard delete a todo in the browser (or via ./scripts/delete_todo.sh)
+# (Don't sync yet - this creates the lag)
+
+# 5. See what happens:
+# - In `find` resolver: query breaks
+# - In `where` resolver: todo is missing
+
+# 6. Then try soft delete to see it work in both modes
+```
+
+**For more detailed step-by-step instructions, see [DEMO.md](DEMO.md)**
 
 ---
 
@@ -108,17 +148,28 @@ create_table :todos do |t|
 end
 ```
 
-**GraphQL Resolver — the critical part:**
+**GraphQL Resolver — the critical part (with mode toggle):**
 ```ruby
 def todos
   search_ids = fetch_active_ids_from_search  # [1, 2, 3]
-  todos = Todo.with_discarded.where(id: search_ids)  # Includes deleted
+  mode = Api::SettingsController.resolver_mode  # 'find' or 'where'
+  
+  todos = if mode == 'where'
+    Todo.with_discarded.where(id: search_ids)
+  else
+    Todo.with_discarded.find(search_ids)
+  end
   
   todos.map do |todo|
-    todo.discarded? ? nil : todo  # Filter out deleted
+    todo.discarded? ? nil : todo  # Filter out discarded
   end.compact
 end
 ```
+
+**What you observe:**
+- **Mode A** — fails when search app returns ID of hard-deleted todo → exposes the sync lag problem
+- **Mode B** — works but skips the hard-deleted record → hides the problem
+- **With soft deletes** — both modes work because deleted rows still exist → no problem either way ✓
 
 ### Why `with_discarded`?
 
@@ -202,7 +253,16 @@ SELECT id, title, discarded_at FROM todos;
 
 ## Key Insight
 
-> **Soft deletes are defensive against sync lag.** Even if the search service returns a deleted ID (due to lag), the data service can gracefully handle it without errors. Hard deletes require error handling at the GraphQL layer and break the client experience.
+When a search service returns IDs with sync lag, hard deletes create a dilemma:
+- **`find` resolver** — query breaks when record doesn't exist
+- **`where` resolver** — data goes missing silently
+
+**Soft deletes solve this:**
+- Records are marked as deleted but remain in the database
+- Both resolvers work because the record still exists
+- The system gracefully filters out deleted records without breaking
+
+> Soft deletes are defensive against sync lag. The entire distributed system remains consistent even when different services are temporarily out of sync.
 
 ---
 
