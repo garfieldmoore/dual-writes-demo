@@ -51,12 +51,15 @@ http://localhost:3000/todos
    ```
 
 2. **Hard delete a todo** in the browser (red button) — don't sync the search app yet
-   - Notice the query may behave differently depending on the resolver mode (toggle at top)
+   - The record is gone from the database
+   - The search app still thinks it's active
+   - This creates inconsistency
 
 3. **Soft delete a todo instead** (yellow button)
    - Add new todos first
-   - Soft delete works consistently regardless of resolver mode
-   - Record is still in the database, just marked as deleted
+   - The record stays in the database, just marked as deleted
+   - Search app can still find it and filter gracefully
+   - No inconsistency
 
 ## Scripts
 
