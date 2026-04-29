@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Todo Demo</title>
+  <style>
+    body { font-family: monospace; margin: 40px; background: #f5f5f5; }
+    h1 { color: #333; }
+    .section { background: white; padding: 20px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #0066cc; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #eee; padding: 2px 6px; border-radius: 3px; }
+    pre { background: #eee; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🎯 Todo Demo — Soft Deletes with Sync Lag</h1>
+
+  <div class="section">
+    <h2>📊 API Endpoints</h2>
+    <p>View todos as JSON:</p>
+    <ul>
+      <li><a href="/api/todos"><code>GET /api/todos</code></a> — Active todos (filtered by search app)</li>
+      <li><a href="/api/todos/all"><code>GET /api/todos/all</code></a> — All todos including deleted</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>🚀 Quick Demo</h2>
+    <p>Run these commands in the repo root:</p>
+    <pre>
+./scripts/add_todo.sh "Buy milk" "From the store"
+./scripts/view_db.sh              # See what's in the database
+./scripts/sync_search_app.sh      # Sync to search app
+./scripts/list_todos.sh           # See active todos
+./scripts/delete_todo.sh 1        # Soft-delete a todo
+./scripts/view_db.sh              # See it marked DELETED
+./scripts/list_todos.sh           # Still filtered out (not synced yet)
+./scripts/sync_search_app.sh      # Sync the deletion
+./scripts/list_todos.sh           # Now search app also filters it
+    </pre>
+  </div>
+
+  <div class="section">
+    <h2>🔍 View Individual Todos</h2>
+    <p>Replace <code>:id</code> with a todo ID (1, 2, 3, etc):</p>
+    <pre>http://localhost:3000/api/todos/:id</pre>
+    <p>Example: <a href="/api/todos/1"><code>/api/todos/1</code></a></p>
+  </div>
+
+  <div class="section">
+    <h2>📖 Documentation</h2>
+    <ul>
+      <li><a href="https://github.com/garfieldmoore/dual-writes-demo">GitHub Repo</a></li>
+      <li><a href="https://github.com/garfieldmoore/dual-writes-demo/blob/main/README.md">README</a></li>
+      <li><a href="https://github.com/garfieldmoore/dual-writes-demo/blob/main/DEMO.md">Interactive Walkthrough</a></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>🎓 The Insight</h2>
+    <p><strong>Soft deletes are defensive against sync lag.</strong></p>
+    <p>When you soft-delete a todo, the row still exists in the database (marked with <code>discarded_at</code>). Even if the search app hasn't synced yet, the GraphQL resolver can gracefully filter it out without errors.</p>
+    <p>With hard deletes, the row would be gone, the search app would still return the ID, and the resolver would throw a <code>RecordNotFound</code> error.</p>
+  </div>
+</body>
+</html>
