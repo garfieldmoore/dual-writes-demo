@@ -44,8 +44,10 @@ http://localhost:3000/todos
 
 ## Demo Steps
 
-1. **Reset and sync:**
+1. **Reset database and search app:**
    ```bash
+   rm todo-app/db/development.sqlite3
+   cd todo-app && rails db:create db:migrate && cd ..
    ./scripts/reset_search_app.sh
    ./scripts/sync_search_app.sh
    ```
@@ -55,8 +57,15 @@ http://localhost:3000/todos
    - The search app still thinks it's active
    - This creates inconsistency
 
-3. **Soft delete a todo instead** (yellow button)
-   - Add new todos first
+3. **Reset again and demonstrate soft delete:**
+   ```bash
+   rm todo-app/db/development.sqlite3
+   cd todo-app && rails db:create db:migrate && cd ..
+   ./scripts/reset_search_app.sh
+   ./scripts/sync_search_app.sh
+   ```
+   - Add new todos
+   - Soft delete (yellow button) instead
    - The record stays in the database, just marked as deleted
    - Search app can still find it and filter gracefully
    - No inconsistency
