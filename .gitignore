@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+/todo-app/vendor/
+
+# Databases
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+/todo-app/db/*.sqlite3
+/todo-app/db/*.sqlite3-wal
+
+# Logs
+/todo-app/log/
+*.log
+
+# Temp files
+tmp/
+/todo-app/tmp/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.local
