@@ -87,3 +87,5 @@ The demo includes a resolver toggle to show different query strategies:
 - **`where` mode** — silently skips missing IDs
 
 With **hard deletes**, each mode has a problem. With **soft deletes**, both work because deleted rows still exist in the database.
+
+<!-- hall-pass test: docs-only change -->
