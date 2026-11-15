@@ -11,7 +11,7 @@ actions:
 
 classifiers:
   path-category:
-    mode: shadow         # switch to active once the comments look right
+    mode: active         # verdicts checked in shadow on #2–#4
     categories:
       docs-only:
         allow: ["docs/**", "**/*.md", "**/*.mdx"]
