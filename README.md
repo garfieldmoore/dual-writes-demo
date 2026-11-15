@@ -89,3 +89,4 @@ The demo includes a resolver toggle to show different query strategies:
 With **hard deletes**, each mode has a problem. With **soft deletes**, both work because deleted rows still exist in the database.
 
 ---
+auto merge bot 
