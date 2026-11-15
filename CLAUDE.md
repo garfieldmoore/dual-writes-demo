@@ -182,3 +182,5 @@ after_create { SearchSyncService.notify_created(id) }
 - Discard gem: https://github.com/jhawthorn/discard
 - GraphQL Ruby: https://graphql-ruby.org
 - DBeaver (DB GUI): https://dbeaver.io
+
+<!-- hall-pass test: behavioural markdown -->
