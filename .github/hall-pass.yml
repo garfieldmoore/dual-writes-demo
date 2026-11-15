@@ -1,0 +1,21 @@
+# hall-pass config: https://github.com/garfieldmoore/hall-pass
+# Read from the base branch, so changes here only take effect once merged.
+version: 1
+
+actions:
+  approve: true          # merge-bot approves qualifying PRs
+  autoMerge: true        # turn on GitHub auto-merge for qualifying PRs
+  mergeMethod: squash    # squash | merge | rebase
+  labels: true           # apply hall-pass:<category> labels
+  comment: true          # sticky summary comment
+
+classifiers:
+  path-category:
+    mode: shadow         # switch to active once the comments look right
+    categories:
+      docs-only:
+        allow: ["docs/**", "**/*.md", "**/*.mdx"]
+        # CLAUDE.md, AGENTS.md, SKILL.md, .claude/, .github/, prompts and other
+        # behavioural markdown are always denied by hall-pass's built-in list.
+        deny:
+          - "**/CHANGELOG.md"
