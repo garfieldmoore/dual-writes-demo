@@ -18,6 +18,6 @@ jobs:
         with:
           client-id: ${{ vars.MERGE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.MERGE_BOT_KEY }}
-      - uses: garfieldmoore/hall-pass@v1
+      - uses: RainbowDemo/hall-pass@v1
         with:
           github-token: ${{ steps.app.outputs.token }}
