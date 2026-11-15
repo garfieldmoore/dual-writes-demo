@@ -3,9 +3,10 @@
 version: 1
 
 actions:
-  approve: true          # merge-bot approves qualifying PRs
+  approve: true          # the App approves qualifying PRs
   autoMerge: true        # turn on GitHub auto-merge for qualifying PRs
   mergeMethod: squash    # squash | merge | rebase
+  mergeWhenClean: true   # safe here: the ruleset requires CI, so "can merge now" means CI passed
   labels: true           # apply hall-pass:<category> labels
   comment: true          # sticky summary comment
 
