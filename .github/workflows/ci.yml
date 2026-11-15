@@ -1,0 +1,43 @@
+name: CI
+
+# Runs on every PR, docs included. Don't add a paths filter: this is a required
+# check, and a required check that never reports leaves PRs blocked forever.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: search-app/package-lock.json
+      - name: search-app — install
+        working-directory: search-app
+        run: npm ci
+      - name: search-app — syntax check and load
+        working-directory: search-app
+        run: |
+          for f in src/*.js; do node --check "$f"; done
+          node -e "require('./src/store.js'); console.log('store loads')"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - name: todo-app — Ruby syntax check
+        working-directory: todo-app
+        run: |
+          find app config db lib test -name '*.rb' -print0 | xargs -0 -n1 ruby -wc > /dev/null
+          echo "all Ruby files parse"
+
+      - name: scripts — shell syntax check
+        run: for f in scripts/*.sh; do bash -n "$f"; done
