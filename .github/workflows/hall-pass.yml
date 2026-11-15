@@ -1,0 +1,23 @@
+name: hall-pass
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: hall-pass-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  classify:
+    # Fork PRs never get the merge-bot token.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          client-id: ${{ vars.MERGE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.MERGE_BOT_KEY }}
+      - uses: garfieldmoore/hall-pass@v1
+        with:
+          github-token: ${{ steps.app.outputs.token }}
