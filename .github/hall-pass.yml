@@ -30,4 +30,4 @@ classifiers:
     allowedUpdateTypes: ["version-update:semver-patch"]
     allowPreOneZero: false
     denyPackages: []
-    allowedFiles: ["**/package.json", "**/package-lock.json"]
+    allowedFiles: ["**/package.json", "**/package-lock.json", "**/Gemfile", "**/Gemfile.lock"]
