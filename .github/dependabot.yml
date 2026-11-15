@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/search-app"
+    schedule:
+      interval: daily
+    # Don't propose releases younger than 3 days (not applied to security updates).
+    cooldown:
+      default-days: 3
+    # Majors would never qualify for dependabot-safe here; skip the noise.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

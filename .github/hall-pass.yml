@@ -20,3 +20,14 @@ classifiers:
         # behavioural markdown are always denied by hall-pass's built-in list.
         deny:
           - "**/CHANGELOG.md"
+
+  # Dependabot patch updates, in shadow until we've seen real PRs.
+  dependabot-safe:
+    mode: shadow
+    botLogins: ["dependabot[bot]"]
+    allowedCommitters: ["web-flow"]
+    branchPrefix: "dependabot/"
+    allowedUpdateTypes: ["version-update:semver-patch"]
+    allowPreOneZero: false
+    denyPackages: []
+    allowedFiles: ["**/package.json", "**/package-lock.json", "**/Gemfile", "**/Gemfile.lock"]
