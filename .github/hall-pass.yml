@@ -21,9 +21,9 @@ classifiers:
         deny:
           - "**/CHANGELOG.md"
 
-  # Dependabot patch updates, in shadow until we've seen real PRs.
+  # Dependabot patch updates. Shadow verdicts checked on #18 and #19.
   dependabot-safe:
-    mode: shadow
+    mode: active
     botLogins: ["dependabot[bot]"]
     allowedCommitters: ["web-flow"]
     branchPrefix: "dependabot/"
