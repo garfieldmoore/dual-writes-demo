@@ -16,7 +16,7 @@ jobs:
       - uses: actions/create-github-app-token@v3
         id: app
         with:
-          app-id: ${{ vars.MERGE_BOT_APP_ID }}
+          client-id: ${{ vars.MERGE_BOT_CLIENT_ID }}
           private-key: ${{ secrets.MERGE_BOT_KEY }}
       - uses: garfieldmoore/hall-pass@v1
         with:
